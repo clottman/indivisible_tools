@@ -1,4 +1,0 @@
-skills = ["Talking with strangers","Distributing print material - flyers, posters, etc","Being informed on latest political events","Door to door canvassing","Collaborating","Making phone calls"]
-
-
-causes = ["Women's Rights", "LGBTQIA Rights", "Racial Equity", "Native American/First Nations Rights", "Arts Funding,"Education", "Environment", "Healthcare", "Immigration", "Local Politics"]
