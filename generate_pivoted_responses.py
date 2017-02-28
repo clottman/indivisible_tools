@@ -3,10 +3,12 @@
 import sys
 import csv
 import json
+import logging
 
 inputfile = 'responses.csv'
 configfile = 'config.json'
 outputfile = 'parsedresponses.csv'
+log_level = logging.DEBUG
 
 
 def parse_csv_into_array(csvfile, columndelimiter):
@@ -29,57 +31,62 @@ def load_config(configfile):
     return config
 
 
-def pivot_data(data):
-    return nil
-
-
-def write_output_file(csvfile, data):
+def write_output_file(csvfile, data, columndelimiter):
     with open(csvfile, 'w') as outputfile:
-        responsewriter = csv.writer(outputfile, delimiter='|')
+        responsewriter = csv.writer(outputfile, delimiter=columndelimiter)
         responsewriter.writerows(data)
 
 
 def main():
+    logging.basicConfig(stream=sys.stderr, level=log_level)
+
     # Parse possible skills, interests, and availability from json file; in a perfect world
     # we could infer this from the csv, but google forms does not escape commas in responses,
     # and kludges them together, so we have to be explicit on matching options to properly parse.
+    logging.debug('Loading questions and responses config to pivot from %s' % configfile)
     config = load_config(configfile)
 
-    # Convert our csv file of responses into a python dict
+    logging.debug('Parsing responses in %s csv into array' % inputfile)
     parsedresponses = parse_csv_into_array(inputfile, '|')
 
-    # Parse data into a pivottable from the csv data
+    logging.debug('Starting to parse questions and responses from the DataToPivot key in %s' % configfile)
     for question, responses in config['DataToPivot'].items():
-        # The first line at index 0 is our header, and how we determine where the data to pivot is
+
+        logging.debug('Attempting to find the column of the question: "%s"' % question)
         questioncolumn = parsedresponses[0].index(question)
 
-        # Look for a match to each known response
+        logging.debug('Looping through responses in config to match each line')
         for response in responses:
-            # Add the option to the header
+            logging.debug('Adding the response option: "%s" to the header row' % response)
             parsedresponses[0].append(response)
 
-            # Parse each individual response
+            logging.debug('Looping through each individual response (ignoring the header row)')
             for line in parsedresponses[1:]:
-                # Add response to line with a true flag and strip the response with trailing comma (if there) from text
                 if response in line[questioncolumn]:
+                    logging.debug('Found a match for %s in row %s for user %s %s' % (response, parsedresponses.index(line), line[1], line[2]))
                     line.append("true")
+
+                    # Strips out the first instance of the response, then the first comma followed by space found
+                    # This allows us to find all the "Other" answers at the end of the response string
                     line[questioncolumn] = line[questioncolumn].replace(response, '', 1).replace(", ", '', 1)
-                # If not found, still add the response with false to make data consistent number of columns
                 else:
+                    logging.debug('Did not find a match for %s in row %s for user %s %s' % (response, parsedresponses.index(line), line[1], line[2]))
                     line.append("false")
 
-        # Need to parse the write in answers now:
+        logging.debug('Adding "%s - Other" header into header row' % question)
         parsedresponses[0].append(question + " - Other")
 
         for line in parsedresponses[1:]:
-            # if line[questioncolumn]
-            # print()
+            logging.debug('Parsing "%s" write in answer into column "%s - Other" in row %s for user %s %s' % (line[questioncolumn], question, parsedresponses.index(line), line[1], line[2]))
             line.append(line[questioncolumn])
 
     for row in parsedresponses:
-        print(len(row))
+        logging.debug('Row %s has %s columns' % (parsedresponses.index(row), len(row)))
 
-    write_output_file(outputfile, parsedresponses)
+    logging.debug('Writing output file %s' % outputfile)
+    write_output_file(outputfile, parsedresponses, '|')
+
+    logging.debug('Success! Input file %s was parsed using config %s and %s has been generated!' % (inputfile, configfile, outputfile))
 
 
 if __name__ == '__main__':
